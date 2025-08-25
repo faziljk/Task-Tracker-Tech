@@ -275,7 +275,7 @@
                             <button class="btn-commented" onclick="updateStatus('${task.requestId}', 'Commented')" ${!isChecking ? 'disabled' : ''}>Commented</button>
                             <button class="btn-completed" onclick="updateStatus('${task.requestId}', 'Completed')" ${!isChecking ? 'disabled' : ''}>Completed</button>
                             <button class="btn-edit-note" onclick="editNotes('${task.requestId}')" ${!isHold ? 'disabled' : ''}>Edit Note</button>
-                            <button class="btn-move" onclick="moveToHistory('${task.requestId}')" disabled>Move</button>  <!-- Disabled for tech -->
+                            <button class="btn-move" disabled>Move</button>  <!-- Disabled for tech -->
                         </td>
                     `;
                     activeTbody.appendChild(row);
