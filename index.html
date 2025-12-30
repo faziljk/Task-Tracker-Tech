@@ -43,8 +43,8 @@
         .days-taken-dark-red { background-color: #8b0000; color: #fff; } /* Dark Red */
     </style>
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js"></script>
 </head>
 <body>
     <h1>Technical Job Tracker - Tech</h1>
@@ -74,6 +74,7 @@
                 <option>Sheik</option>
                 <option>Harish</option>
                 <option>Fazil</option>
+                <option>Udaya</option>
             </select>
         </div>
         <div>
@@ -108,7 +109,26 @@
         <tbody></tbody>
     </table>
 
-    
+    <h2>Job History</h2>
+    <table id="jobHistory">
+        <thead>
+            <tr>
+                <th>Request Code</th>
+                <th>Requested By</th>
+                <th>Task</th>
+                <th>Assigned To</th>
+                <th>Added Date</th>
+                <th>Due Date</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Note</th>
+                <th>Moved Date</th>
+                <th>Status Times</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
     <script>
         // Firebase Initialization
         const firebaseConfig = {
@@ -225,15 +245,13 @@
                     const isCompleted = task.status === 'Completed';
                     const isCommented = task.status === 'Commented';
 
-                    const assignedCell = task.assignedTo !== 'Unassigned' ? task.assignedTo : `
+                    // Always show dropdown for Assigned To, pre-select current
+                    const currentAssignee = task.assignedTo || 'Unassigned';
+                    const assignOptions = ['Unassigned', 'Santhosh', 'Mani', 'Dharanish', 'Sheik', 'Harish', 'Fazil', 'Udaya']
+                        .map(opt => `<option value="${opt}" ${opt === currentAssignee ? 'selected' : ''}>${opt}</option>`).join('');
+                    const assignedCell = `
                         <select class="assign-select" onchange="assignMember('${task.requestId}', this.value)">
-                            <option value="Unassigned" selected>Unassigned</option>
-                            <option>Santhosh</option>
-                            <option>Mani</option>
-                            <option>Dharanish</option>
-                            <option>Sheik</option>
-                            <option>Harish</option>
-                            <option>Fazil</option>
+                            ${assignOptions}
                         </select>
                     `;
 
@@ -253,19 +271,39 @@
                             <button class="btn-in-progress" onclick="updateStatus('${task.requestId}', 'In Progress')" ${!(isPending || isCommented) ? 'disabled' : ''}>In Progress</button>
                             <button class="btn-hold" onclick="updateStatus('${task.requestId}', 'Hold')" ${!isInProgress ? 'disabled' : ''}>Hold</button>
                             <button class="btn-checking" onclick="updateStatus('${task.requestId}', 'Checking')" ${!isInProgress ? 'disabled' : ''}>Checking</button>
-                            <button class="btn-commented" onclick="updateStatus('${task.requestId}', 'Commented')" ${!isChecking ? 'disabled' : ''}>Commented</button>
-                            <button class="btn-completed" onclick="updateStatus('${task.requestId}', 'Completed')" ${!isChecking ? 'disabled' : ''}>Completed</button>
+                            <button class="btn-commented" onclick="updateStatus('${task.requestId}', 'Commented')" disabled>Commented</button>
+                            <button class="btn-completed" onclick="updateStatus('${task.requestId}', 'Completed')" disabled>Completed</button>
                             <button class="btn-edit-note" onclick="editNotes('${task.requestId}')" ${!isHold ? 'disabled' : ''}>Edit Note</button>
-                            <button class="btn-move" disabled>Move</button>  <!-- Disabled for tech -->
+                            <button class="btn-move" onclick="moveToHistory('${task.requestId}')" disabled>Move</button>
                         </td>
                     `;
                     activeTbody.appendChild(row);
                 });
 
-         
+            // Job History
+            const historyTbody = document.getElementById('jobHistory').querySelector('tbody');
+            historyTbody.innerHTML = '';
+            jobHistory.forEach(task => {
+                const statusTimesStr = Object.entries(task.statusTimes || {}).map(([status, time]) => `${status}: ${time}`).join('<br>');
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${task.requestId}</td>
+                    <td>${task.requestedBy}</td>
+                    <td>${task.taskType}</td>
+                    <td>${task.assignedTo}</td>
+                    <td>${task.addedDate}</td>
+                    <td>${task.dueDate || '-'}</td>
+                    <td>${task.priority}</td>
+                    <td>${task.status}</td>
+                    <td>${task.notes}</td>
+                    <td>${task.movedDate}</td>
+                    <td>${statusTimesStr}</td>
+                `;
+                historyTbody.appendChild(row);
+            });
         }
 
-        // Assign member
+        // Assign member (now works anytime)
         function assignMember(requestId, newAssignee) {
             const task = activeTasks.find(t => t.requestId === requestId);
             if (task && newAssignee !== 'Unassigned') {
@@ -338,5 +376,3 @@
     </script>
 </body>
 </html>
-
-
