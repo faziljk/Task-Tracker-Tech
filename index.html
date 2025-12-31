@@ -109,26 +109,6 @@
         <tbody></tbody>
     </table>
 
-    <h2>Job History</h2>
-    <table id="jobHistory">
-        <thead>
-            <tr>
-                <th>Request Code</th>
-                <th>Requested By</th>
-                <th>Task</th>
-                <th>Assigned To</th>
-                <th>Added Date</th>
-                <th>Due Date</th>
-                <th>Priority</th>
-                <th>Status</th>
-                <th>Note</th>
-                <th>Moved Date</th>
-                <th>Status Times</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
     <script>
         // Firebase Initialization (now using compat syntax consistently)
         const firebaseConfig = {
@@ -144,14 +124,9 @@
         const db = firebase.database();
 
         let activeTasks = [];
-        let jobHistory = [];
         const today = new Date().toISOString().split('T')[0];
         const lastDateKey = 'lastSavedDate';
         const lastSavedDate = localStorage.getItem(lastDateKey);
-        if (lastSavedDate && lastSavedDate !== today && jobHistory.length > 0) {
-            downloadHistoryAsCSV();
-            db.ref('jobHistory').set([]);
-        }
         localStorage.setItem(lastDateKey, today);
 
         // Load data from Firebase
@@ -160,16 +135,11 @@
                 activeTasks = snapshot.val() || [];
                 renderTables();
             });
-            db.ref('jobHistory').on('value', (snapshot) => {
-                jobHistory = snapshot.val() || [];
-                renderTables();
-            });
         }
 
         // Save data to Firebase
         function saveData() {
             db.ref('activeTasks').set(activeTasks);
-            db.ref('jobHistory').set(jobHistory);
         }
 
         // Calculate days between two dates
@@ -245,15 +215,19 @@
                     const isCompleted = task.status === 'Completed';
                     const isCommented = task.status === 'Commented';
 
-                    // Always show dropdown for Assigned To, pre-select current
-                    const currentAssignee = task.assignedTo || 'Unassigned';
-                    const assignOptions = ['Unassigned', 'Santhosh', 'Mani', 'Dharanish', 'Sheik', 'Harish', 'Fazil', 'Udaya']
-                        .map(opt => `<option value="${opt}" ${opt === currentAssignee ? 'selected' : ''}>${opt}</option>`).join('');
-                    const assignedCell = `
-                        <select class="assign-select" onchange="assignMember('${task.requestId}', this.value)">
-                            ${assignOptions}
-                        </select>
-                    `;
+                    // Conditional Assigned To: Dropdown only if Unassigned; else static text
+                    let assignedCell;
+                    if (task.assignedTo === 'Unassigned' || !task.assignedTo) {
+                        const assignOptions = ['Unassigned', 'Santhosh', 'Mani', 'Dharanish', 'Sheik', 'Harish', 'Fazil', 'Udaya']
+                            .map(opt => `<option value="${opt}" ${opt === 'Unassigned' ? 'selected' : ''}>${opt}</option>`).join('');
+                        assignedCell = `
+                            <select class="assign-select" onchange="assignMember('${task.requestId}', this.value)">
+                                ${assignOptions}
+                            </select>
+                        `;
+                    } else {
+                        assignedCell = task.assignedTo; // Static text if assigned
+                    }
 
                     row.innerHTML = `
                         <td class="${statusClass}">${task.requestId}</td>
@@ -279,37 +253,15 @@
                     `;
                     activeTbody.appendChild(row);
                 });
-
-            // Job History
-            const historyTbody = document.getElementById('jobHistory').querySelector('tbody');
-            historyTbody.innerHTML = '';
-            jobHistory.forEach(task => {
-                const statusTimesStr = Object.entries(task.statusTimes || {}).map(([status, time]) => `${status}: ${time}`).join('<br>');
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${task.requestId}</td>
-                    <td>${task.requestedBy}</td>
-                    <td>${task.taskType}</td>
-                    <td>${task.assignedTo}</td>
-                    <td>${task.addedDate}</td>
-                    <td>${task.dueDate || '-'}</td>
-                    <td>${task.priority}</td>
-                    <td>${task.status}</td>
-                    <td>${task.notes}</td>
-                    <td>${task.movedDate}</td>
-                    <td>${statusTimesStr}</td>
-                `;
-                historyTbody.appendChild(row);
-            });
         }
 
-        // Assign member (now works anytime, but skips Unassigned to match original logic if needed)
+        // Assign member (only if changing from Unassigned)
         function assignMember(requestId, newAssignee) {
             const task = activeTasks.find(t => t.requestId === requestId);
-            if (task && newAssignee !== 'Unassigned') {
+            if (task && newAssignee !== 'Unassigned' && task.assignedTo === 'Unassigned') {
                 task.assignedTo = newAssignee;
                 saveData();
-                renderTables();
+                renderTables(); // Re-render to lock it as static text
             }
         }
 
@@ -351,31 +303,7 @@
 
         // Move to history (disabled, but function kept for completeness)
         function moveToHistory(requestId) {
-            const taskIndex = activeTasks.findIndex(t => t.requestId === requestId);
-            if (taskIndex !== -1) {
-                const movedTask = { ...activeTasks[taskIndex], movedDate: new Date().toISOString().split('T')[0] };
-                jobHistory.push(movedTask);
-                activeTasks.splice(taskIndex, 1);
-                saveData();
-                renderTables();
-            }
-        }
-
-        // Download history as CSV
-        function downloadHistoryAsCSV() {
-            if (jobHistory.length === 0) return;
-            let csv = 'Request Code,Requested By,Task,Assigned To,Added Date,Due Date,Priority,Status,Note,Moved Date,Status Times\n';
-            jobHistory.forEach(task => {
-                const statusTimesStr = Object.entries(task.statusTimes).map(([s, t]) => `${s}:${t}`).join('; ');
-                csv += `${task.requestId},${task.requestedBy},${task.taskType},${task.assignedTo},${task.addedDate},${task.dueDate || ''},${task.priority},${task.status},${task.notes.replace(/,/g, ';')},${task.movedDate},${statusTimesStr}\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `job_history_${lastSavedDate}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
+            // No-op in Tech
         }
 
         // Filter change listeners
