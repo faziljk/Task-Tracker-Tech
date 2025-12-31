@@ -42,9 +42,9 @@
         .days-taken-red { background-color: #f44336; color: #fff; } /* Red */
         .days-taken-dark-red { background-color: #8b0000; color: #fff; } /* Dark Red */
     </style>
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js"></script>
+    <!-- Firebase SDK (compat build for namespaced API - fixed to match Admin) -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
 </head>
 <body>
     <h1>Technical Job Tracker - Tech</h1>
@@ -130,7 +130,7 @@
     </table>
 
     <script>
-        // Firebase Initialization
+        // Firebase Initialization (now using compat syntax consistently)
         const firebaseConfig = {
             apiKey: "AIzaSyAizaSyBugCDYleeDAX9BbGpoWoA67YDtQ-43zyk",
             authDomain: "tasktrackernew-e3917.firebaseapp.com",
@@ -303,7 +303,7 @@
             });
         }
 
-        // Assign member (now works anytime)
+        // Assign member (now works anytime, but skips Unassigned to match original logic if needed)
         function assignMember(requestId, newAssignee) {
             const task = activeTasks.find(t => t.requestId === requestId);
             if (task && newAssignee !== 'Unassigned') {
@@ -346,6 +346,18 @@
                     saveData();
                     renderTables();
                 }
+            }
+        }
+
+        // Move to history (disabled, but function kept for completeness)
+        function moveToHistory(requestId) {
+            const taskIndex = activeTasks.findIndex(t => t.requestId === requestId);
+            if (taskIndex !== -1) {
+                const movedTask = { ...activeTasks[taskIndex], movedDate: new Date().toISOString().split('T')[0] };
+                jobHistory.push(movedTask);
+                activeTasks.splice(taskIndex, 1);
+                saveData();
+                renderTables();
             }
         }
 
